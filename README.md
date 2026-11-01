@@ -8,6 +8,7 @@
 | --- | --- |
 | 单次评测 / 提示对比 | `scripts/benchmark.ps1` 或 `python -m vista` |
 | 批量任务与多种子对比 | `scripts/run_matrix.py`，支持断点续跑 |
+| ARC 公开集总分 | `scripts/run_arc_suite.py`，冻结目录、校验官方分卡、保留失败并续测 |
 | 原生计分与过程诊断 | 自动输出任务进度、成功状态、决策 / 动作、状态卡、核验与恢复记录 |
 | 汇总报告与日志回放 | `scripts/report_results.py`、本地仪表盘、每次运行的 `replay.html` |
 | 有效性审计 | `scripts/run_controls.py`，运行不调用模型的控制策略 |
