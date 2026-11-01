@@ -156,7 +156,7 @@ def make_profile(
     backend: str = "codex",
     max_decisions: int = MAX_DECISIONS,
 ) -> AgentProfile:
-    if backend not in {"codex", "claude"}:
+    if backend not in {"codex", "claude", "api"}:
         raise ValueError("Unknown backend")
     actions = tuple(spec.name for spec in action_specs())
     system = system_prompt(game, max_decisions=max_decisions)
@@ -183,7 +183,7 @@ def make_profile(
         SessionPolicy(
             context=ContextMode.CONTINUOUS,
             interaction=InteractionMode.TOOLS,
-            compaction=CompactionMode.CHECKPOINT,
+            compaction=CompactionMode.NATIVE if backend == "api" else CompactionMode.CHECKPOINT,
         ),
     )
 

@@ -22,6 +22,11 @@ recordings/
 environment_files/
 experiments/
 
+# Locally generated benchmark results can contain prompts, screenshots,
+# provider output, scorecard IDs, and machine-specific metadata.
+reports/
+data/
+
 # Local editor/system files.
 .DS_Store
 

@@ -59,7 +59,7 @@ def make_profile(
     *,
     backend: str = "codex",
 ) -> AgentProfile:
-    if backend not in {"codex", "claude"}:
+    if backend not in {"codex", "claude", "api"}:
         raise ValueError("Unknown backend")
     from .computer_use import objective
 
@@ -86,7 +86,7 @@ def make_profile(
         ),
         SessionPolicy(
             context=ContextMode.CONTINUOUS,
-            compaction=CompactionMode.CHECKPOINT,
+            compaction=CompactionMode.NATIVE if backend == "api" else CompactionMode.CHECKPOINT,
             one_action_per_turn=game.role_count > 1,
         ),
     )

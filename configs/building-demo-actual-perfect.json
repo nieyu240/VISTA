@@ -1,0 +1,12 @@
+{
+  "blocks": [
+    {"x": 0, "y": 0, "z": 0, "material": "stone"},
+    {"x": 1, "y": 0, "z": 0, "material": "stone"},
+    {"x": 0, "y": 1, "z": 0, "material": "stone"},
+    {"x": 1, "y": 1, "z": 0, "material": "stone"},
+    {"x": 0, "y": 2, "z": 0, "material": "wood"},
+    {"x": 1, "y": 2, "z": 0, "material": "wood"}
+  ],
+  "connected": true,
+  "entrance_reachable": true
+}

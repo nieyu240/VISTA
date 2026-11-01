@@ -17,11 +17,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         choices=("arc3", "gameworld", "aigamestore", "babyvision"),
         required=True,
     )
-    parser.add_argument("--backend", choices=("codex", "claude"), required=True)
+    parser.add_argument("--backend", choices=("codex", "claude", "api", "deepseek"), required=True)
     if not arguments or arguments in (["--help"], ["-h"]):
         parser.print_help()
         return 0
     selection, remaining = parser.parse_known_args(arguments)
+    if selection.backend in {"api", "deepseek"}:
+        from .localbench import main as api_main
+
+        command = remaining.pop(0) if remaining and remaining[0] in {
+            "doctor", "list", "run", "compare", "replay"
+        } else "run"
+        return api_main([command, "--profile", selection.profile, *remaining])
     if selection.profile != "arc3" and selection.backend != "codex":
         parser.error(f"--profile {selection.profile} requires --backend codex")
     if remaining[:1] == ["--"]:

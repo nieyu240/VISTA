@@ -131,7 +131,7 @@ class Experiment:
     evaluator: str
 
     def __post_init__(self) -> None:
-        if self.backend not in {"codex", "claude"}:
+        if self.backend not in {"codex", "claude", "api"}:
             raise ValueError("Unsupported backend")
         if not all(
             (

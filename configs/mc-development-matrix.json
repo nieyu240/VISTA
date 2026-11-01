@@ -1,0 +1,18 @@
+{
+  "protocol": "matrix-v1",
+  "profile": "gameworld",
+  "tasks": [
+    {"game": "18_minecraft-clone-glm", "task": "18_01"},
+    {"game": "18_minecraft-clone-glm", "task": "18_02"}
+  ],
+  "seeds": [42, 43, 44],
+  "conditions": [
+    {"name": "current-reliable", "reliability": "reliable", "memory_mode": "current", "inspection": "agent"},
+    {"name": "visual-reliable", "reliability": "reliable", "memory_mode": "visual", "inspection": "agent"},
+    {"name": "legacy", "reliability": "legacy", "memory_mode": "legacy", "inspection": "off"}
+  ],
+  "max_calls": 110,
+  "max_tokens": 2048,
+  "request_timeout": 90,
+  "task_timeout": 900
+}

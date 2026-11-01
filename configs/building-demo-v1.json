@@ -1,0 +1,16 @@
+{
+  "protocol": "building-v1",
+  "suite": "gameworld-minecraft-clone-building",
+  "version": "v1",
+  "target": {"blocks": [
+    {"x": 0, "y": 0, "z": 0, "material": "stone"},
+    {"x": 1, "y": 0, "z": 0, "material": "stone"},
+    {"x": 0, "y": 1, "z": 0, "material": "stone"},
+    {"x": 1, "y": 1, "z": 0, "material": "stone"},
+    {"x": 0, "y": 2, "z": 0, "material": "wood"},
+    {"x": 1, "y": 2, "z": 0, "material": "wood"}
+  ]},
+  "forbidden": [],
+  "constraints": {"connected": true, "entrance_reachable": true},
+  "scoring": "exact block positions and materials; extra/missing/forbidden blocks are reported"
+}

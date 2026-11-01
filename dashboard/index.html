@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>本地游戏 Benchmark</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,'Microsoft YaHei',sans-serif;background:#0d1420;color:#e6edf7}body{max-width:1120px;margin:48px auto;padding:0 24px}h1{font-size:32px;margin-bottom:12px}p{color:#b2c0d3;line-height:1.8}a{color:#9fcaff;text-decoration:none}a:hover{text-decoration:underline}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:18px;margin:32px 0}.card{border:1px solid #334257;background:#162234;border-radius:14px;padding:22px}.card h2{font-size:19px;margin-top:0}.card p{font-size:14px}.tag{font-size:12px;color:#99e8ca}table{width:100%;border-collapse:collapse;margin:18px 0}th,td{text-align:left;padding:13px 10px;border-bottom:1px solid #29384b;font-size:14px}th{color:#9fb0c5;font-weight:500}.success{color:#92e2b9}.fail{color:#ffbc92}.small{font-size:13px}button{padding:8px 14px;background:#223b5a;border:1px solid #476788;border-radius:8px;color:#ecf4ff;cursor:pointer}.overflow{overflow:auto}code{background:#1d2c3e;padding:3px 7px;border-radius:5px}
+</style>
+<h1>本地游戏 Benchmark</h1><p>用真实画面、真实动作与游戏评估器验证 Agent。查看任务结果，回放执行过程。</p>
+<div class="cards">
+<article class="card"><span class="tag">MC 方向 · 采集与操作</span><h2>Minecraft 风格沙盒</h2><p>先验证移动、视角与资源采集。浏览器复刻环境，可作为正式 Minecraft 接入前的实验场。</p><a href="/games/18_minecraft-clone-glm/" target="_blank">打开本地游戏 ↗</a></article>
+<article class="card"><span class="tag">规划与反馈</span><h2>2048</h2><p>在固定种子下评估视觉识别、动作选择与目标完成度。</p><a href="/games/01_2048/" target="_blank">打开本地游戏 ↗</a></article>
+<article class="card"><span class="tag">导航与关卡</span><h2>Astray 迷宫</h2><p>为导航、地图理解和关卡复刻方向提供可重置的试验任务。</p><a href="/games/03_astray/" target="_blank">打开本地游戏 ↗</a></article>
+</div>
+<button id="refresh">刷新结果</button><p class="small">只有 <code>scored=true</code> 的运行具有有效评分。任务完成度、ARC 官方分数与 GameStore 分数分别展示。</p>
+<section class="card"><h2>实验计划与有效性审计</h2><div id="overview" class="small">读取已保存的矩阵和审计摘要…</div></section>
+<div class="overflow"><table><thead><tr><th>运行</th><th>套件 / 游戏 / 任务</th><th>种子 / 协议</th><th>模型</th><th>结果</th><th>评分</th><th>执行与成本</th><th>证据</th></tr></thead><tbody id="runs"></tbody></table></div>
+<p class="small">评测命令与部署说明见桌面 benchmark 文件夹中的 README。模型推理消耗所配置服务的额度。</p>
+<script>
+const esc=x=>String(x??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const n=(x,d=1)=>typeof x==='number'&&Number.isFinite(x)?x.toFixed(d):'—';
+const p=x=>typeof x==='number'&&Number.isFinite(x)?`${(x*100).toFixed(1)}%`:'—';
+async function refresh(){const rows=await(await fetch('/api/runs')).json();document.querySelector('#runs').innerHTML=rows.length?rows.map(r=>{
+let score=r.progress!=null?`完成度 ${(r.progress*100).toFixed(0)}%`:r.official_score!=null?`ARC ${r.official_score.toFixed(6)}<br><small>通过 ${esc(r.levels_completed)} / ${esc(r.total_levels)} 关</small>`:r.normalized_score!=null?`GameStore ${r.normalized_score.toFixed(2)}`:'—';
+let status=r.error?'运行错误':r.success===true?'成功':r.scored?(r.success===false?'已评分 · 未通关':'已评分'):'未完成';
+let stepText=`${esc(r.steps)} ${r.step_kind==='decision'?'决策':'动作'}`;
+if(r.executed_actions!=null)stepText+=`<br><small>执行 ${esc(r.executed_actions)} 动作<br>仅文字 ${esc(r.text_only_turns)} 轮</small>`;
+ stepText+=`<br><small>墙钟 ${n(r.elapsed_seconds)}s · 模型调用 ${esc(r.model_calls)}</small>`;
+ const tokens=r.prompt_tokens!=null&&r.completion_tokens!=null?r.prompt_tokens+r.completion_tokens:'—';
+ stepText+=`<br><small>模型延迟 p50/p95 ${n(r.model_latency_p50,2)}/${n(r.model_latency_p95,2)}s · tokens ${esc(tokens)}</small>`;
+ stepText+=`<br><small>动作耗时 p50/p95 ${n(r.action_latency_p50,2)}/${n(r.action_latency_p95,2)}s · ${esc(r.action_calls)} 次</small>`;
+ if(r.reliability)stepText+=`<br><small>非法动作率 ${p(r.reliability.invalid_action_rate)} · 状态卡 ${esc(r.reliability.state_cards)} · 恢复 ${esc(r.reliability.recovery_interventions)} · 检查 ${esc(r.reliability.inspection_calls)}</small>`;
+const identity=r.task_identity?` · ${esc(r.task_identity.slice(0,12))}`:'';
+ return `<tr><td>${esc(r.run)}</td><td>${esc(r.game)}<br><small>${esc(r.suite??'legacy')} · ${esc(r.task)}</small></td><td>${esc(r.seed)}<br><small>${esc(r.protocol_version??'legacy')} · 时钟 ${esc(r.clock_mode??'未声明')}${identity}</small></td><td>${esc(r.model)}</td><td class="${r.success?'success':'fail'}">${status}</td><td>${score}</td><td>${stepText}</td><td>${r.replay?`<a href="${encodeURI(r.replay)}" target="_blank">回放 ↗</a>`:'等待生成'}</td></tr>`}).join(''):'<tr><td colspan="8">尚无已结束的运行</td></tr>';}
+async function overview(){const x=await(await fetch('/api/overview')).json();const m=(x.matrices??[]).map(v=>{const s=v.condition_summary??{};const c=(s.conditions??[]).map(q=>`${esc(q.condition)} ${esc(q.scored)}/${esc(q.attempted)} 评分 · 成功 ${p(q.success_rate)} · 进度 ${p(q.progress_mean)} · 调用均值 ${n(q.model_calls_mean)} · 模型 p95 ${n(q.model_latency_p95_mean,2)}s · 动作 p95 ${n(q.action_latency_p95_mean,2)}s · token ${n(q.tokens_mean,0)}`).join('<br>');const pairs=(s.paired??[]).map(q=>`${esc(q.condition_a)} → ${esc(q.condition_b)}：配对 ${esc(q.matched_scored_pairs)} · 进度差 ${q.progress_delta_b_minus_a==null?'—':(q.progress_delta_b_minus_a*100).toFixed(1)+'pp'}`).join('<br>');return `${esc(v.path)}：${v.jobs} 个任务，已结束 ${v.completed}，启动 ${v.attempts_total} 次，待执行 ${v.pending??0}，中断 ${v.interrupted??0}，失败 ${v.failures}${c?'<br><small>'+c+'</small>':''}${pairs?'<br><small>'+pairs+'</small>':''}`}).join('<br><br>')||'暂无矩阵';const a=(x.audits??[]).map(v=>{const c=(v.controls??[]).filter(q=>q.name).map(q=>`${esc(q.name)} ${q.progress==null?'未评分':(q.progress*100).toFixed(0)+'%'}`).join(' · ');return `${esc(v.path)}：${esc(v.audit_type)}，模型调用 ${esc(v.model_calls)}${c?'<br><small>控制结果：'+c+'</small>':''}`}).join('<br>')||'暂无审计';const b=x.building_demo_fixture?`fixture 完成度 ${(x.building_demo_fixture.score.completion*100).toFixed(0)}%（不是 Agent 建造成绩）`:'尚无建筑 fixture';document.querySelector('#overview').innerHTML=`<b>矩阵与配对对比</b><br>${m}<br><br><b>有效性审计</b><br>${a}<br><br><b>建筑评分器</b><br>${b}`;}
+document.querySelector('#refresh').onclick=refresh;refresh();overview();setInterval(refresh,15000);
+</script></html>
