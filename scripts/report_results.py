@@ -349,7 +349,7 @@ payload = {
     "matrices": matrices,
     "audits": audits,
     "building_demo_fixture": building_fixture,
-    "scope": "Diagnostic single-task trials; preserve failures; no aggregate across incompatible suites.",
+    "scope": "Saved local evaluations; preserve failures; report matched task/seed conditions separately by suite.",
 }
 (out / "results.json").write_text(
     json.dumps(payload, ensure_ascii=False, indent=2) + "\n"
@@ -418,37 +418,7 @@ for row in rows:
     lines.append(
         f"| {link} | {status} | {score} | {step_text} | {seconds} | {row['model_calls']}；{model_latency} | {action_latency}；{tokens} |"
     )
-by_name = {row["run"]: row for row in rows}
-lines += ["", "## 已完成的对比", ""]
-mc_baseline = by_name.get("minecraft-clone-dirt-baseline")
-mc_vista = by_name.get("minecraft-clone-dirt")
-if mc_baseline and mc_vista:
-    lines += [
-        f"MC 风格采集 `18_01`：基础提示新增泥土 17/20，完成度 {mc_baseline['progress']:.0%}，100 次决策（实际执行 {mc_baseline['executed_actions']} 次动作）；增强提示新增泥土 20/20，完成度 {mc_vista['progress']:.0%}，50 次决策（实际执行 {mc_vista['executed_actions']} 次动作）并成功。任务完成度增加 15 个百分点。",
-        "两次均为 `deepseek-flash`、seed=42、关闭思考、最多 110 次模型调用、每次最多 2048 输出 token、900 秒会话预算，沿用上游 100 次决策上限，成功后提前结束。早期增强运行的 manifest 未包含 thinking 字段，但其归档请求明确发送了 `thinking.type=disabled`。",
-        "采集数量由游戏评估器按本轮新增量核定；初始背包中的泥土不计入目标。",
-        "基础运行有 49 轮只回复文字，反复声称采集完成，实际未达标。优先改进可见背包计数和未终止时的行动策略。此前报告曾将 100 次决策误标为 100 次动作，现已按轨迹更正；原始分数及日志未改动。",
-        "",
-    ]
-baseline = by_name.get("gameworld-2048-baseline")
-vista = by_name.get("gameworld-2048-smoke")
-if baseline and vista:
-    reduction = 1 - vista["steps"][0] / baseline["steps"][0]
-    faster = 1 - vista["elapsed_seconds"] / baseline["elapsed_seconds"]
-    lines += [
-        f"2048 `01_01`、seed=42、同一模型和 API/时间预算：基础与增强提示均成功，完成度均为 100%。增强提示动作减少 {reduction:.1%}，本次墙钟用时减少 {faster:.1%}。",
-        "",
-    ]
-arc_thinking = by_name.get("arc3-vc33-thinking")
-if arc_thinking:
-    lines += [
-        f"ARC3 `vc33`：非思考基础/增强提示均为官方分数 0、0/7 关；开启思考的独立运行获得官方分数 {arc_thinking['official_score']:.6f}，通过 {arc_thinking['levels_completed']}/{arc_thinking['total_levels']} 关，30 次动作，约 601 秒，scorecard 已关闭。仍未通关。",
-        "思考运行同时把输出上限从 1600 改为 8192 token、模型调用上限从 80 改为 60、动作上限从 60 改为 80；两组会话预算均为 600 秒。分数直接保留官方返回值，不解释为百分比或整体通过率。该结果不构成只改变思考模式的公平对照。",
-        "",
-    ]
-lines += [
-    "以上每种配置各运行一次，属于诊断结果。模型随机性、服务延迟与运行时负载会影响表现；尚未完成多种子重复试验，不能推断稳定优势。"
-]
+lines += ["", "同任务、同种子、同预算的对比见下方实验矩阵。单次运行用于诊断，多次重复后再判断配置收益。"]
 reliability_rows = [row for row in rows if row.get("reliability")]
 if reliability_rows:
     lines += [
@@ -586,10 +556,8 @@ lines += [
     "",
     "## 评分边界",
     "",
-    "- 旧 DeepSeek 适配按回复关键字产生的 12/100、48/100 不构成有效基线，未纳入对比。",
     "- MC 风格沙盒只验证采集任务；不是正式 Minecraft 的建筑验收或击败末影龙。饥荒与泰拉瑞亚仍需独立部署。",
-    "- ARC3 保留官方部分分数及未通关状态，不将 1/7 关计作整场成功。",
-    "- GameStore 射击运行只使用 5 次决策，用于验证动作和计分闭环，不与完整 120 决策结果比较。",
+    "- ARC3 保留官方部分分数和已完成关卡数，部分通过不能计作整场成功。",
     "- 所有 `scored=false` 的运行单列，不剔除后声称全套通过率；没有生成跨套件的虚构综合分。",
     "- 回放只浏览保存的画面和日志，不声称游戏引擎可以完全确定性重演。",
     "",
@@ -598,7 +566,7 @@ lines += [
     "打开 [本地结果页面](http://localhost:8765)。如果服务已关闭，双击根目录的 `打开Benchmark.cmd`。",
     "每个已结束运行目录含 `result.json`、`replay.html`，模型请求/响应与动作日志保留在其 transport 或 private/api 子目录。",
     "模型请求没有写入认证 header。源码和数据版本、输入配置与源码哈希保存在 manifest。",
-    "[使用说明](../../README.md) · [机器可读结果](results.json) · [安装检查](installed/doctor.json)",
+    "[使用说明](../../README.md) · [机器可读结果](results.json)",
     "",
 ]
 (out / "部署与评测报告.md").write_text("\n".join(lines), encoding="utf-8")

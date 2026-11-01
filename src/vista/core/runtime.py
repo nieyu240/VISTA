@@ -1,4 +1,4 @@
-"""Serialized, allowlisted task execution shared by both CLI transports."""
+"""Serialized, allowlisted task execution for game agents."""
 
 from __future__ import annotations
 

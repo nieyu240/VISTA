@@ -13,7 +13,7 @@
 <button id="refresh">刷新结果</button><p class="small">只有 <code>scored=true</code> 的运行具有有效评分。任务完成度、ARC 官方分数与 GameStore 分数分别展示。</p>
 <section class="card"><h2>实验计划与有效性审计</h2><div id="overview" class="small">读取已保存的矩阵和审计摘要…</div></section>
 <div class="overflow"><table><thead><tr><th>运行</th><th>套件 / 游戏 / 任务</th><th>种子 / 协议</th><th>模型</th><th>结果</th><th>评分</th><th>执行与成本</th><th>证据</th></tr></thead><tbody id="runs"></tbody></table></div>
-<p class="small">评测命令与部署说明见桌面 benchmark 文件夹中的 README。模型推理消耗所配置服务的额度。</p>
+<p class="small">评测命令与部署说明见项目根目录 README。模型推理消耗所配置服务的额度。</p>
 <script>
 const esc=x=>String(x??'—').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const n=(x,d=1)=>typeof x==='number'&&Number.isFinite(x)?x.toFixed(d):'—';

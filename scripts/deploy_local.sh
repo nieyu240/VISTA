@@ -10,7 +10,7 @@ mkdir -p "$benchmark_data" "$benchmark_root/reports/deployment"
   echo "Run this script from the checked-out benchmark project." >&2
   exit 2
 }
-python3 -m venv "$benchmark_venv"
+python3.12 -m venv "$benchmark_venv"
 "$benchmark_venv/bin/python" -m pip install -e "$benchmark_repo[gameworld,aigamestore,dev]"
 "$benchmark_venv/bin/python" -m playwright install chromium
 "$benchmark_venv/bin/python" - "$benchmark_repo" "$benchmark_data" <<'PY'
@@ -48,6 +48,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=3) as pool:
     list(pool.map(checkout, jobs))
 PY
 "$benchmark_venv/bin/python" -m pip check
+if [[ "${VISTA_SKIP_BROWSER_CHECK:-0}" != "1" ]]; then
 "$benchmark_venv/bin/python" - <<'PY'
 from playwright.sync_api import sync_playwright
 with sync_playwright() as pw:
@@ -55,4 +56,5 @@ with sync_playwright() as pw:
     print('Chromium ready:', browser.version)
     browser.close()
 PY
+fi
 echo "Deployment complete: $benchmark_repo"

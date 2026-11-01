@@ -184,7 +184,7 @@ def parser():
     p.add_argument("--recovery-limit", type=int, default=6)
     p.add_argument("--data", type=Path, default=DATA)
     p.add_argument("--env-file", type=Path, action="append", default=[])
-    p.add_argument("--model", default="deepseek-flash")
+    p.add_argument("--model", help="Provider model ID; defaults to VISTA_MODEL")
     p.add_argument("--game", default="01_2048")
     p.add_argument("--task", default="01_01")
     p.add_argument("--seed", type=int, default=42)
@@ -257,7 +257,7 @@ def doctor(args):
         "source": source_identity(),
         "dependencies": {
             n: md.version(n)
-            for n in ("vista-arc3", "arc-agi", "playwright", "Pillow", "PyYAML")
+            for n in ("vista-game-benchmark", "arc-agi", "playwright", "Pillow", "PyYAML")
         },
         "datasets": {},
         "model_requested": args.probe_model,
@@ -377,13 +377,13 @@ def run_arc(args, s, directory):
     from arcengine import GameState
     from jsonschema import Draft202012Validator
 
-    from vista.benchmarks.arc3.codex.controller import GameController
-    from vista.benchmarks.arc3.codex.tools import build_tools
+    from vista.benchmarks.arc3.controller import GameController
     from vista.benchmarks.arc3.run import (
         finalize_scorecard,
         open_evaluation_scorecard,
         share_online_cookie_jar,
     )
+    from vista.benchmarks.arc3.tools import build_tools
     from vista.core.dispatcher import GameToolDispatcher, execution_from_response
 
     if not os.getenv("ARC_API_KEY"):
@@ -715,6 +715,8 @@ def main(argv=None):
         if not path.is_file():
             p.error(f"Environment file does not exist: {path}")
         load_dotenv(path, override=False)
+    if not args.model:
+        args.model = os.getenv("VISTA_MODEL", "deepseek-flash")
     if args.command == "list":
         catalog = list_tasks(args)
         if args.output:

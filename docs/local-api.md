@@ -1,134 +1,61 @@
-# Local API transport
+# API 与评测协议参考
 
-This local branch adds `api` / `deepseek` as an explicit backend, backed by
-`vista.backends.api.ApiSession`. The existing Codex/Claude paths still use their
-original transport. API runs expose only the registered task tools; no shell,
-filesystem browsing or evaluator tools are sent to the model.
+统一入口为 `python -m vista`（等同于 `python -m vista.localbench`），命令有 `doctor`、`list`、`run`、`compare`、`replay`。Windows 的 `scripts/benchmark.ps1` 另外提供 `report`。
 
-## Entry points
+## 模型配置
 
-```bash
-~/.venvs/vista-benchmark/bin/vista \
-  --profile gameworld --backend deepseek run \
-  --game 18_minecraft-clone-glm --task 18_01 \
-  --env-file /path/to/your/local.env \
-  --model deepseek-flash --max-calls 110 --task-timeout 900 \
-  --output /path/to/new-run
-```
+从显式 `--env-file .env` 读取配置；已存在的进程环境变量优先。命令行 `--model` 优先于 `VISTA_MODEL`，缺省模型 ID 为 `deepseek-flash`。
 
-Equivalent: `python -m vista.localbench run --profile gameworld ...`.
-Use `list`, `doctor`, `compare` and `replay` as the other commands. `doctor
---probe-model --output DIR` sends one billed image/tool request. Ordinary
-`doctor` and `list` do not generate model responses.
+| 环境变量 | 含义 |
+| --- | --- |
+| `VISTA_API_KEY` | 服务商密钥；兼容 `DEEPSEEK_API_KEY` / `OPENAI_API_KEY` 回退 |
+| `VISTA_API_BASE` | Chat Completions 基础地址；兼容 DeepSeek / OpenAI 地址变量 |
+| `VISTA_MODEL` | 服务商提供的真实模型 ID |
+| `ARC_API_KEY` | ARC3 官方在线服务密钥，仅 ARC3 使用 |
+| `VISTA_BENCH_DATA` | WSL / Linux 游戏数据目录 |
 
-Set `VISTA_API_KEY`, `VISTA_API_BASE` for another compatible provider, or load
-them from an explicit `--env-file`. Existing DeepSeek/OpenAI variable names
-are fallback choices. Credentials are not copied into manifests, request JSON,
-Docker, or source files. Model request logs contain public task inputs only.
+密钥不写入 manifest 或模型请求 JSON；请求日志包含任务输入和服务商响应，默认保留在 Git 忽略的运行目录。API 只向模型开放注册的任务工具。
 
-## What changes
+## 主要参数
 
-- GameWorld and GameStore API runs reuse the upstream environment, task
-  catalog, native actions, evaluation, visual inspection and memory tools.
-- ARC3 runs reuse the upstream real `GameController` and tool dispatcher;
-  open/close a real online scorecard, and use its returned score. Game IDs are
-  resolved from the actual ARC catalog, not an invented list.
-- Images come from actual environment observations after each action.
-- A game action is never automatically retried. Network retries apply only to
-  model requests, and are logged because a timed-out request may be billed.
-- Multiple tool replies are acknowledged together before another image input;
-  at most one environment action is executed from a model response. Excess
-  action calls receive an explicit nonexecution reply.
-- Invalid arguments and duplicate IDs pass through the runtime's validation
-  without moving the environment. Assistant claims cannot set a game score.
-- The host API transport uses the process proxy, avoiding the historical
-  Docker proxy forwarding failure. This does not modify Codex Docker behavior.
+| 参数 | 默认值 / 作用 |
+| --- | --- |
+| `--profile` | `gameworld`；也可选 `aigamestore` / `arc3` |
+| `--game` / `--task` | 用 `list` 查询；GameWorld 需要指定对应任务 |
+| `--seed` | `42`；控制环境，不能保证服务商推理确定 |
+| `--output` | 新运行目录；运行与对比时必填，不覆盖现有数据 |
+| `--max-calls` | `150` 次逻辑模型请求；传输重试另外记账 |
+| `--max-tokens` | `2048`，单次输出 token 上限 |
+| `--timeout` / `--task-timeout` | 单次请求 90 秒 / 会话 1200 秒；启动和清理另有开销 |
+| `--max-steps` | `100`；GameWorld 固定为原生 100 次决策，GameStore 最多 120 次决策，ARC3 为动作上限 |
+| `--strategy` | `vista` / `baseline`；额外提示词条件，两者都有注册工具 |
+| `--thinking` | `disabled` / `enabled`；只向官方 DeepSeek 地址发送对应扩展参数 |
+| `--image-history` | `8`；保留在请求中的图像数量，原图仍归档 |
+| `--clock-mode` | 当前仅 `paused`；`wall` / `token` 在适配器支持前拒绝运行 |
 
-## Experiment settings
+`doctor` / `list` 不生成模型响应。`doctor --probe-model --env-file .env --output runs/model-check` 会发起一次使用图像与工具的付费模型检查。
 
-`baseline` uses the same registered tools and image retention as `vista`.
-`vista` adds an explicit hypothesis/action/observation/memory instruction.
-This is a prompt comparison, not a claim that it exactly replicates the
-paper's CLI agent harness. The model, provider, thinking setting, strategy,
-image history, budgets and Python source hashes are preserved in manifests.
+## 记忆、核验与恢复
 
-## Reliability and ablations
+| 参数 | 可选值与意义 |
+| --- | --- |
+| `--reliability` | `legacy` 关闭扩展；`ledger` 状态卡；`verified` 加完成核验；`reliable` 再加有界恢复 |
+| `--memory-mode` | `current` 当前观察；`summary` 有界状态 / 回执文字；`visual` 视觉历史与回看；`legacy` 原对话行为 |
+| `--inspection` | `off` 关闭，`agent` 自主检查；`fixed` 为预留配置，目前不自动产生定时检查 |
+| `--inspection-budget` | `8` 次检查；`--inspection-view-budget` 默认 24 个视图 |
+| `--stall-threshold` / `--recovery-limit` | 默认 3 / 6，控制无进展提示和恢复上限 |
 
-The local runner applies the first reliability phase from the accompanying
-benchmark plan. `--reliability reliable` (the default) adds a public
-`report_state` tool, whose claims must cite an episode/frame and normalized
-image region. It records predictions, self-assessed visual verification,
-action receipts, inspection budgets and bounded recovery notices. The tool
-cannot read evaluator state or set success. `verified` omits recovery,
-`ledger` only records the state card, and `legacy` disables these extensions.
+`report_state` 要求主张引用当前 episode 中的观测帧和区域，记录子目标、预测与自我核验。它不能读取私有 evaluator，也不能设置成功。引用可追溯不等于语义证据正确；状态卡不代替环境真值。
 
-`--memory-mode visual` retains the existing visual-history tools; `summary`
-disables visual inspection and keeps bounded state/receipt text; `current`
-starts each decision from the current observation and disables historical
-memory tools; `legacy` preserves the old conversation behavior. `--inspection
-off|fixed|agent` controls visual inspection exposure. The fixed option is a
-reserved protocol condition and does not synthesize inspections. All these
-settings, tool schema hashes, prompt hashes and the statement that private
-state access is false are saved in `reliability-config.json`.
+## 动作与结果
 
-Process fields are diagnostic and separate from native scores: state-card
-count, frame-reference coverage, self-assessment count, accepted action rate,
-text-only turns, inspection calls/views and recovery interventions. Semantic
-evidence accuracy, hidden-state accuracy, recovery success and strict success
-remain `null` until an independent annotation or task constraint defines
-them; they are never treated as zero or used to change the evaluator result.
-Each reliability event carries an episode/event/decision ID, visibility and
-monotonic timing. A replay remains a log viewer, not deterministic engine
-re-execution.
+- 图像来自真实环境。一次模型响应至多执行一个环境动作，多余动作返回未执行回执。
+- 非法参数、重复调用 ID 不推动环境；网络重试只重试模型请求，游戏动作不自动重试。
+- 模型宣称完成不会加分。GameWorld / GameStore 由原生 evaluator 计分；ARC3 保存官方 scorecard 与通过关卡数。
+- 任务失败、预算耗尽、基础设施错误保留记录。`scored=false` 不应作为成功样本，也不应从统计分母中悄悄删除。
 
-The image history is explicitly bounded (default eight images). Older images
-remain archived and can be revisited through `inspect`; their text/tool
-references stay in the conversation. There is no unreported summary model.
-Very long text histories can still reach the provider context limit; such a
-failure is recorded, not converted into an artificial score.
+`task-protocol-v2` 保存任务、种子、预算、数据版本、评估器和计时模式；源码、工具 schema、提示词与模块设置另存 manifest / `reliability-config.json`。环境动作、观察、状态卡、模型响应与动作回执使用关联 ID 和时间戳。
 
-`--thinking enabled` is sent to the official DeepSeek origin; other compatible
-gateways do not receive that provider-specific parameter. Record and verify
-their own reasoning configuration before claiming a matched comparison.
-No API seed is assumed to guarantee deterministic model output. The recorded
-seed configures GameWorld/GameStore environments; online ARC3 generation is
-controlled by the remote service.
+报告分别展示原生进度 / 成功、合法动作率、文字轮次、证据引用覆盖、检查与恢复次数、调用数、token 和模型 / 动作延迟 p50/p95。没有独立真值的证据语义准确率、状态准确率、恢复成功率和严格成功率为 `null`。
 
-GameWorld retains the upstream 100-decision environment limit. GameStore has
-an explicit `--max-steps` decision budget up to 120. Short smoke tests must
-be reported separately from full-budget results. ARC3 has separate action,
-model-call and wall-clock budgets. API call caps count logical requests;
-transient network retries may add up to two HTTP attempts per logical call.
-Wall-clock limits are checked at model-call boundaries, with request timeouts;
-environment startup/cleanup and final scorecard calls add overhead.
-
-## Evidence and results
-
-GameWorld/GameStore use the upstream `scored` checks: completed run, valid
-evaluator result, no evaluation configuration/runtime issues. Incomplete
-or infrastructure-failed runs retain their evidence and remain unscored.
-ARC3 stores the complete official scorecard response, game state, completed
-levels, errors and termination reason. A positive official partial score
-does not imply all game levels were completed.
-
-`replay.html` is a self-contained viewer of archived observations and events,
-with per-frame event matching, action/model timing and final results. It is
-log replay; it does not claim deterministic re-execution of the game.
-
-The browser Minecraft clone has collection tasks and placement controls;
-its current standard tasks do not evaluate buildings or formal Minecraft
-completion. Native Minecraft, Don't Starve and Terraria still require their
-own installations, adapters and evaluators.
-
-## Verification
-
-```bash
-python -m unittest discover -s tests -v
-ruff check src/vista/backends/api.py src/vista/localbench.py src/vista/replay.py tests
-python -m pip check
-```
-
-The runtime tests use an independent deterministic environment to verify
-real state changes, image changes, evaluator-only completion, invalid action
-rejection, message ordering and archival image handling. They are separate
-from model/game benchmark scores.
+同任务同种子条件才进入配对分析；任务先聚合，再按任务及任务内种子进行两级 bootstrap。少于两个任务时不估计置信区间，不混合不同套件的原生评分尺度。回放查看保存的画面与事件，不重新执行游戏引擎。

@@ -1,6 +1,3 @@
-"""Compatibility imports for the shared backend provenance checks."""
+"""Shared source identity for game evaluations."""
 
-from vista.backends.preflight import (
-    check_transport as check_transport,
-    source_fingerprint as source_fingerprint,
-)
+from vista.backends.preflight import source_fingerprint as source_fingerprint

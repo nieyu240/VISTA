@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Apply an explicitly configured proxy to one WSL command. No profile is edited.
-# This does not forward proxy variables into VISTA's Docker player.
 set -euo pipefail
 
 if [[ $# -eq 0 ]]; then

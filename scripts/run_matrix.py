@@ -127,11 +127,7 @@ def main():
         )
     if any(not Path(path).is_file() for path in args.env_file):
         parser.error("An --env-file path does not exist in this WSL filesystem")
-    project_dir = (
-        wsl_root
-        if (wsl_root / "src/vista/localbench.py").is_file()
-        else wsl_root / "VISTA"
-    )
+    project_dir = wsl_root
     if not (project_dir / "src/vista/localbench.py").is_file():
         parser.error("Could not resolve the benchmark VISTA source directory")
     for job in jobs:
@@ -219,6 +215,8 @@ def main():
             "--clock-mode",
             condition.get("clock_mode", matrix.get("clock_mode", "paused")),
         ]
+        if matrix.get("model"):
+            command.extend(["--model", matrix["model"]])
         for env_file in args.env_file:
             command.extend(["--env-file", env_file])
         environment = os.environ.copy()

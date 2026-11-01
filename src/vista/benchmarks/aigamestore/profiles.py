@@ -153,10 +153,10 @@ def system_prompt(
 def make_profile(
     game: PublicGame,
     *,
-    backend: str = "codex",
+    backend: str = "api",
     max_decisions: int = MAX_DECISIONS,
 ) -> AgentProfile:
-    if backend not in {"codex", "claude", "api"}:
+    if backend != "api":
         raise ValueError("Unknown backend")
     actions = tuple(spec.name for spec in action_specs())
     system = system_prompt(game, max_decisions=max_decisions)
@@ -164,7 +164,7 @@ def make_profile(
     vista_tools = tuple(
         name
         for name in VISTA_TOOLS
-        if backend == "codex" or name != "save_compact_checkpoint"
+        if name != "save_compact_checkpoint"
     )
     return AgentProfile(
         "aigamestore-segmented-input/vista",
@@ -183,7 +183,7 @@ def make_profile(
         SessionPolicy(
             context=ContextMode.CONTINUOUS,
             interaction=InteractionMode.TOOLS,
-            compaction=CompactionMode.NATIVE if backend == "api" else CompactionMode.CHECKPOINT,
+            compaction=CompactionMode.NATIVE,
         ),
     )
 

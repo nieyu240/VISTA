@@ -13,7 +13,8 @@ from typing import Any, Iterable
 from arcengine import GameAction, GameState
 from PIL import Image
 
-from vista.benchmarks.arc3.codex.tools import (
+from vista.benchmarks.arc3.render import save_frame_png
+from vista.benchmarks.arc3.tools import (
     ACTION_NAMES,
     MAX_GUIDE_CHARS,
     MAX_INSPECTION_LABEL_CHARS,
@@ -23,7 +24,6 @@ from vista.benchmarks.arc3.codex.tools import (
     MAX_PIXEL_READOUT_VIEWS,
     MAX_WORKING_CHARS,
 )
-from vista.benchmarks.arc3.render import save_frame_png
 from vista.core.session import (
     CompactRecovery,
     RetryRecovery,

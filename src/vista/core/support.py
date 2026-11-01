@@ -589,7 +589,7 @@ class TaskContext(SessionController):
                 controller=self,
                 guide_path=self.guide_path,
                 working_path=self.working_path,
-                checkpoint_via_working=self.backend == "claude",
+                checkpoint_via_working=False,
             )
         self._calls += 1
         execution = self._dispatcher.execute(name, arguments, f"memory-{self._calls}")
@@ -690,7 +690,7 @@ class TaskContext(SessionController):
     def _tools(self) -> tuple[ToolBinding, ...]:
         bindings = []
         for original in build_tools(
-            self.display_size, include_compact_checkpoint=self.backend == "codex"
+            self.display_size, include_compact_checkpoint=False
         ):
             definition = copy.deepcopy(original)
             name = definition["name"]

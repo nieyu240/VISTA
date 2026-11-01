@@ -1,9 +1,11 @@
 param(
-    [ValidateSet('doctor','list','run','compare','replay')][string]$Command = 'doctor',
+    [ValidateSet('doctor','list','run','compare','replay','report')][string]$Command = 'doctor',
     [ValidateSet('gameworld','arc3','aigamestore')][string]$Profile = 'gameworld',
     [string]$Game = '01_2048',
     [string]$Task = '01_01',
-    [string]$Model = 'deepseek-flash',
+    [string]$Model = '',
+    [string]$Distribution = 'Ubuntu-24.04',
+    [string]$PythonPath = '',
     [int]$Seed = 42,
     [int]$MaxSteps = 100,
     [int]$MaxCalls = 150,
@@ -31,17 +33,22 @@ function ConvertTo-BenchmarkWslPath([string]$Path) {
 }
 $benchmarkRoot = Split-Path -Parent $PSScriptRoot
 $benchmarkLinuxRoot = ConvertTo-BenchmarkWslPath $benchmarkRoot
-$benchmarkLinuxHome = (& wsl -d Ubuntu-24.04 -- bash -lc 'printf %s "$HOME"').Trim()
-if (-not $benchmarkLinuxHome) { throw 'Could not resolve the WSL home directory.' }
-$benchmarkLinuxPython = "$benchmarkLinuxHome/.venvs/vista-benchmark/bin/python"
+$benchmarkLinuxVenv = (& wsl -d $Distribution -- bash -lc 'printf %s "${VISTA_BENCH_VENV:-$HOME/.venvs/vista-benchmark}"').Trim()
+if ($LASTEXITCODE -ne 0 -or -not $benchmarkLinuxVenv) { throw 'Could not resolve the WSL Python environment. Run scripts/deploy.ps1 first.' }
+$benchmarkLinuxPython = "$benchmarkLinuxVenv/bin/python"
 if ($env:VISTA_BENCH_PYTHON) { $benchmarkLinuxPython = $env:VISTA_BENCH_PYTHON }
+if ($PythonPath) { $benchmarkLinuxPython = $PythonPath }
+if ($Command -eq 'report') {
+    & wsl -d $Distribution -- $benchmarkLinuxPython "$benchmarkLinuxRoot/scripts/report_results.py"
+    exit $LASTEXITCODE
+}
 if (-not $Output) {
     $Output = Join-Path $benchmarkRoot ('runs\' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + $Profile)
 }
 $benchmarkLinuxOutput = ConvertTo-BenchmarkWslPath $Output
 $benchmarkArgs = @(
     $benchmarkLinuxPython, '-m', 'vista.localbench', $Command,
-    '--profile', $Profile, '--game', $Game, '--task', $Task, '--model', $Model,
+    '--profile', $Profile, '--game', $Game, '--task', $Task,
     '--seed', $Seed, '--max-steps', $MaxSteps, '--max-calls', $MaxCalls,
     '--max-tokens', $MaxTokens, '--task-timeout', $TaskTimeout, '--strategy', $Strategy, '--thinking', $Thinking,
     '--reliability', $Reliability, '--memory-mode', $MemoryMode, '--inspection', $Inspection,
@@ -50,6 +57,7 @@ $benchmarkArgs = @(
     '--clock-mode', $ClockMode,
     '--output', $benchmarkLinuxOutput
 )
+if ($Model) { $benchmarkArgs += @('--model', $Model) }
 foreach ($benchmarkEnvFile in $ModelEnvFile) {
     if (-not (Test-Path -LiteralPath $benchmarkEnvFile -PathType Leaf)) {
         throw "Model environment file not found: $benchmarkEnvFile"
@@ -57,5 +65,5 @@ foreach ($benchmarkEnvFile in $ModelEnvFile) {
     $benchmarkArgs += @('--env-file', (ConvertTo-BenchmarkWslPath $benchmarkEnvFile))
 }
 if ($ProbeModel) { $benchmarkArgs += '--probe-model' }
-& wsl -d Ubuntu-24.04 -- bash "$benchmarkLinuxRoot/scripts/with_wsl_proxy.sh" @benchmarkArgs
+& wsl -d $Distribution -- bash "$benchmarkLinuxRoot/scripts/with_wsl_proxy.sh" @benchmarkArgs
 exit $LASTEXITCODE

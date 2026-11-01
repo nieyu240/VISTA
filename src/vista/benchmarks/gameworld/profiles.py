@@ -57,9 +57,9 @@ def make_profile(
     task: Any,
     role: int,
     *,
-    backend: str = "codex",
+    backend: str = "api",
 ) -> AgentProfile:
-    if backend not in {"codex", "claude", "api"}:
+    if backend != "api":
         raise ValueError("Unknown backend")
     from .computer_use import objective
 
@@ -68,7 +68,7 @@ def make_profile(
     vista_tools = tuple(
         name
         for name in VISTA_TOOLS
-        if backend == "codex" or name != "save_compact_checkpoint"
+        if name != "save_compact_checkpoint"
     )
     return AgentProfile(
         "gameworld-computer-use/vista",
@@ -86,7 +86,7 @@ def make_profile(
         ),
         SessionPolicy(
             context=ContextMode.CONTINUOUS,
-            compaction=CompactionMode.NATIVE if backend == "api" else CompactionMode.CHECKPOINT,
+            compaction=CompactionMode.NATIVE,
             one_action_per_turn=game.role_count > 1,
         ),
     )

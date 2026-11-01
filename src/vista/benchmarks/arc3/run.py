@@ -1,29 +1,9 @@
-"""Runtime-neutral run storage and ARC scorecard helpers."""
+"""Official ARC-AGI-3 scorecard lifecycle."""
 
 from __future__ import annotations
 
-import os
-import sys
 from contextlib import nullcontext
-from dataclasses import dataclass
-from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
-
-from dotenv import load_dotenv
-
-from vista.core.timeouts import (
-    MAX_TASK_TIMEOUT_SECONDS as MAX_TASK_TIMEOUT_SECONDS,
-    bounded_task_timeout as bounded_task_timeout,
-)
-
-
-@dataclass(frozen=True)
-class GameRunOutcome:
-    run_dir: Path
-    scorecard_id: str | None
-    session_id: str | None
-    failure: BaseException | None
 
 
 def open_evaluation_scorecard(arc: Any) -> str:
@@ -99,58 +79,6 @@ def finalize_scorecard(
     return outcome, None
 
 
-def create_run_dir(runs_dir: Path) -> Path:
-    runs_dir = runs_dir.expanduser().resolve()
-    try:
-        runs_dir.mkdir(parents=True, exist_ok=True)
-    except OSError as exc:
-        raise RuntimeError(
-            f"Cannot create run directory under {runs_dir}: {exc}. "
-            "Use --runs-dir to select a writable location accessible to Docker."
-        ) from exc
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    counter = 0
-    while True:
-        suffix = "" if counter == 0 else f"_{counter}"
-        run_dir = runs_dir / f"run_{stamp}{suffix}"
-        try:
-            run_dir.mkdir(parents=True)
-        except FileExistsError:
-            counter += 1
-            continue
-        except OSError as exc:
-            raise RuntimeError(
-                f"Cannot create run directory under {runs_dir}: {exc}. "
-                "Use --runs-dir to select a writable location accessible to Docker."
-            ) from exc
-        return run_dir
-
-
-def load_run_environment(*, override: bool = False) -> Path:
-    env_file = Path(os.getenv("ARC3_ENV_FILE", ".env")).expanduser().resolve()
-    load_dotenv(env_file, override=override)
-    return env_file
-
-
-def report_run_failure(run_dir: Path, runtime: str) -> None:
-    private_dir = run_dir / "private"
-    print(f"Run diagnostics: {private_dir}", file=sys.stderr, flush=True)
-    try:
-        logs = list((private_dir / f"{runtime}_io").rglob("*.stderr.txt"))
-        if not logs:
-            return
-        latest = max(logs, key=lambda path: (path.stat().st_mtime_ns, str(path)))
-        with latest.open("rb") as stream:
-            stream.seek(0, os.SEEK_END)
-            stream.seek(max(0, stream.tell() - 4096))
-            detail = stream.read().decode("utf-8", errors="replace").strip()
-        print(f"Player stderr: {latest}", file=sys.stderr)
-        if detail:
-            print(detail, file=sys.stderr, flush=True)
-    except OSError as exc:
-        print(f"Could not read player stderr: {exc}", file=sys.stderr)
-
-
 def safe_model_dump(value: Any) -> Any:
     if value is None:
         return None
@@ -165,7 +93,3 @@ def safe_model_dump(value: Any) -> Any:
     if isinstance(value, dict):
         return {str(key): safe_model_dump(item) for key, item in value.items()}
     return str(value)
-
-
-def utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()

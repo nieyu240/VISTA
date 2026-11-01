@@ -10,8 +10,6 @@ from pathlib import Path
 
 project_root = Path(__file__).resolve().parents[1]
 source_root = project_root / "src"
-if not (source_root / "vista").is_dir():
-    source_root = project_root / "VISTA" / "src"
 sys.path.insert(0, str(source_root))
 
 from vista.benchmarks.gameworld.building import load_building_score  # noqa: E402
